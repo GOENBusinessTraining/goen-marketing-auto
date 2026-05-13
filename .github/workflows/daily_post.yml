@@ -1,0 +1,30 @@
+name: GOEN Daily Article Post
+
+on:
+  schedule:
+    - cron: '0 1 * * *'  # 毎日朝10時（ベトナム時間 UTC+7）
+  workflow_dispatch:       # 手動実行も可能
+
+jobs:
+  generate-and-post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Pythonをセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 必要なライブラリをインストール
+        run: pip install anthropic requests
+
+      - name: 記事を生成してWordPressに投稿
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+          WP_URL: https://goen-business.com
+          WP_USER: AdminGOEN
+        run: python post_to_wordpress.py
