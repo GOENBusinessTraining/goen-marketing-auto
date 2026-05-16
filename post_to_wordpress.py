@@ -96,12 +96,20 @@ CONTENT_CALENDAR = [
 # =============================
 # ホーチミン写真リスト（GOENオリジナル）
 # =============================
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/GOENBusinessTraining/goen-marketing-auto/main/"
+
 HCMC_PHOTOS = [
-    "https://lh3.googleusercontent.com/pw/AP1GczM9raR_8F_75E8C6HRxEfSRwZ24Lo9_5GbRex0xPZU7L8D9w8KLoHrpKIvycc9suWiHI8Kryqr6f2mROiipxF9sze2NpBXeF-9Kl-Pth1hVM7_fiLbK=w1200",
-    "https://lh3.googleusercontent.com/pw/AP1GczNdXdvCgL5bEtQXZfEpEd0yWz7nUyQsmVjZa4Ab=w1200",
-    "https://lh3.googleusercontent.com/pw/AP1GczOpeVDmeZosCz3tb8WeDQ8Cpuw4Q8oREi78tlv1=w1200",
-    "https://lh3.googleusercontent.com/pw/AP1GczMzyel_UBBApqJYs2jCAODRi0SqOAAxbfJZyX_m=w1200",
-    "https://lh3.googleusercontent.com/pw/AP1GczMuDXCPaBa9zLcamJUOgJiyHbaWyiQhV7Y47CUV=w1200",
+    GITHUB_RAW_BASE + "20240323_083025.jpg",
+    GITHUB_RAW_BASE + "20241001_145657.jpg",
+    GITHUB_RAW_BASE + "IMG_2589.jpg",
+    GITHUB_RAW_BASE + "IMG_2682.jpg",
+    GITHUB_RAW_BASE + "IMG_3133.jpg",
+    GITHUB_RAW_BASE + "IMG_3459.jpg",
+    GITHUB_RAW_BASE + "IMG_3467.jpg",
+    GITHUB_RAW_BASE + "IMG_3477.jpg",
+    GITHUB_RAW_BASE + "IMG_3505.jpg",
+    GITHUB_RAW_BASE + "IMG_3511.jpg",
+    GITHUB_RAW_BASE + "IMG_3512.jpg",
 ]
 
 # =============================
