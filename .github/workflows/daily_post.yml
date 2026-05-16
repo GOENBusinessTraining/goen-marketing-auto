@@ -24,7 +24,6 @@ jobs:
       - name: 記事を生成してWordPressに投稿
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
-          WP_URL: https://goen-business.com
-          WP_USER: AdminGOEN
+          CLOUDFLARE_WORKER_URL: ${{ secrets.CLOUDFLARE_WORKER_URL }}
+          CF_SECRET_KEY: ${{ secrets.CF_SECRET_KEY }}
         run: python post_to_wordpress.py
