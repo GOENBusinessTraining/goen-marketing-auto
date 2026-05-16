@@ -1,15 +1,12 @@
 import anthropic
 import requests
 import os
-import json
 from datetime import datetime
-from base64 import b64encode
 
 # 設定
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
-WP_URL = "https://goen-business.com"
-WP_USER = "AdminGOEN"
-WP_APP_PASSWORD = os.environ["WP_APP_PASSWORD"]
+CLOUDFLARE_WORKER_URL = os.environ["CLOUDFLARE_WORKER_URL"]
+CF_SECRET_KEY = os.environ["CF_SECRET_KEY"]
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -48,9 +45,7 @@ def generate_article(theme, lang):
 ---BODY---
 （本文・マークダウン・800〜1200字）
 ---CTA---
-（問い合わせ誘導文）
----TAGS---
-（タグ3〜5個、カンマ区切り）"""
+（問い合わせ誘導文）"""
     else:
         prompt = f"""Bạn là copywriter của GOEN Business Training.
 Knowledge: {KNOWLEDGE}
@@ -62,9 +57,7 @@ Hãy viết bài theo định dạng sau:
 ---BODY---
 （nội dung markdown・800〜1200 từ）
 ---CTA---
-（CTA）
----TAGS---
-（3〜5 tags, ngăn cách bằng dấu phẩy）"""
+（CTA）"""
 
     msg = client.messages.create(
         model="claude-opus-4-5",
@@ -74,55 +67,38 @@ Hãy viết bài theo định dạng sau:
     return msg.content[0].text
 
 def parse_article(raw):
-    result = {"title": "", "body": "", "cta": "", "tags": []}
+    result = {"title": "", "body": "", "cta": ""}
     if "---TITLE---" in raw:
         result["title"] = raw.split("---TITLE---")[1].split("---BODY---")[0].strip()
     if "---BODY---" in raw:
         result["body"] = raw.split("---BODY---")[1].split("---CTA---")[0].strip()
     if "---CTA---" in raw:
-        result["cta"] = raw.split("---CTA---")[1].split("---TAGS---")[0].strip()
-    if "---TAGS---" in raw:
-        result["tags"] = [t.strip() for t in raw.split("---TAGS---")[1].strip().split(",")]
+        result["cta"] = raw.split("---CTA---")[1].strip()
     return result
 
-def post_to_wordpress(article, lang="ja"):
-    # パスワードのスペースを除去
-    password = WP_APP_PASSWORD.replace(" ", "")
-    
-    # Basic認証
-    credentials = f"{WP_USER}:{password}"
-    token = b64encode(credentials.encode("utf-8")).decode("utf-8")
+def post_via_cloudflare(article, lang="ja"):
+    content = f"{article['body']}\n\n---\n{article['cta']}"
     
     headers = {
-        "Authorization": f"Basic {token}",
         "Content-Type": "application/json",
-        "Accept": "application/json",
+        "X-Secret-Key": CF_SECRET_KEY,
     }
-
-    content = f"{article['body']}\n\n---\n{article['cta']}"
-
+    
     data = {
         "title": article["title"],
         "content": content,
         "status": "draft",
-        "excerpt": article["body"][:100],
     }
-
-    # まず認証テスト
-    test_url = f"{WP_URL}/wp-json/wp/v2/users/me"
-    test_response = requests.get(test_url, headers=headers)
-    print(f"認証テスト: {test_response.status_code}")
-    if test_response.status_code != 200:
-        print(f"認証失敗: {test_response.text}")
-        return False
-
-    # 投稿
-    post_url = f"{WP_URL}/wp-json/wp/v2/posts"
-    response = requests.post(post_url, headers=headers, json=data)
-
-    if response.status_code in [200, 201]:
-        post_id = response.json().get("id")
-        print(f"✅ 投稿成功 (lang={lang}): ID={post_id}, タイトル={article['title']}")
+    
+    response = requests.post(
+        CLOUDFLARE_WORKER_URL,
+        headers=headers,
+        json=data
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        print(f"✅ 投稿成功 (lang={lang}): ID={result.get('post_id')}, タイトル={article['title']}")
         return True
     else:
         print(f"❌ 投稿失敗 (lang={lang}): {response.status_code} - {response.text}")
@@ -135,19 +111,19 @@ theme = THEMES[weekday]
 date_str = today.strftime("%Y-%m-%d")
 
 print(f"📝 {date_str} の記事を生成・投稿します")
-print(f"WP_USER: {WP_USER}")
-print(f"WP_URL: {WP_URL}")
+print(f"テーマ（日本語）: {theme['ja']}")
+print(f"Chủ đề (tiếng Việt): {theme['vi']}")
 
 # 日本語記事
 print("\n--- 日本語記事を生成中 ---")
 ja_raw = generate_article(theme["ja"], "ja")
 ja_article = parse_article(ja_raw)
-post_to_wordpress(ja_article, "ja")
+post_via_cloudflare(ja_article, "ja")
 
 # ベトナム語記事
 print("\n--- ベトナム語記事を生成中 ---")
 vi_raw = generate_article(theme["vi"], "vi")
 vi_article = parse_article(vi_raw)
-post_to_wordpress(vi_article, "vi")
+post_via_cloudflare(vi_article, "vi")
 
 print("\n🎉 本日の記事生成・投稿完了!")
