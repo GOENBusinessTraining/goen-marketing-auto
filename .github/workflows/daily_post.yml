@@ -9,6 +9,13 @@ jobs:
   generate-and-post:
     runs-on: ubuntu-latest
 
+    # --- 【ここが変更点】全員が見える場所にURLやパスワードを引っ越しました ---
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLOUDFLARE_WORKER_URL: ${{ secrets.CLOUDFLARE_WORKER_URL }}
+      CF_SECRET_KEY: ${{ secrets.CF_SECRET_KEY }}
+    # -------------------------------------------------------------------
+
     steps:
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
@@ -22,8 +29,4 @@ jobs:
         run: pip install anthropic requests
 
       - name: 記事を生成してWordPressに投稿
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLOUDFLARE_WORKER_URL: ${{ secrets.CLOUDFLARE_WORKER_URL }}
-          CF_SECRET_KEY: ${{ secrets.CF_SECRET_KEY }}
         run: python post_to_wordpress.py
