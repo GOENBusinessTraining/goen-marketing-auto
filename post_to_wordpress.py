@@ -7,8 +7,8 @@ from base64 import b64encode
 
 # 設定
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
-WP_URL = os.environ.get("WP_URL", "https://goen-business.com")
-WP_USER = os.environ.get("WP_USER", "AdminGOEN")
+WP_URL = "https://goen-business.com"
+WP_USER = "AdminGOEN"
 WP_APP_PASSWORD = os.environ["WP_APP_PASSWORD"]
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -86,31 +86,39 @@ def parse_article(raw):
     return result
 
 def post_to_wordpress(article, lang="ja"):
-    credentials = b64encode(f"{WP_USER}:{WP_APP_PASSWORD}".encode()).decode()
+    # パスワードのスペースを除去
+    password = WP_APP_PASSWORD.replace(" ", "")
+    
+    # Basic認証
+    credentials = f"{WP_USER}:{password}"
+    token = b64encode(credentials.encode("utf-8")).decode("utf-8")
+    
     headers = {
-        "Authorization": f"Basic {credentials}",
-        "Content-Type": "application/json"
+        "Authorization": f"Basic {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
     }
 
     content = f"{article['body']}\n\n---\n{article['cta']}"
 
-    if lang == "ja":
-        categories_name = "人材育成"
-    else:
-        categories_name = "Đào tạo nhân sự"
-
     data = {
         "title": article["title"],
         "content": content,
-        "status": "draft",  # 下書きとして保存（確認後に公開）
+        "status": "draft",
         "excerpt": article["body"][:100],
     }
 
-    response = requests.post(
-        f"{WP_URL}/wp-json/wp/v2/posts",
-        headers=headers,
-        json=data
-    )
+    # まず認証テスト
+    test_url = f"{WP_URL}/wp-json/wp/v2/users/me"
+    test_response = requests.get(test_url, headers=headers)
+    print(f"認証テスト: {test_response.status_code}")
+    if test_response.status_code != 200:
+        print(f"認証失敗: {test_response.text}")
+        return False
+
+    # 投稿
+    post_url = f"{WP_URL}/wp-json/wp/v2/posts"
+    response = requests.post(post_url, headers=headers, json=data)
 
     if response.status_code in [200, 201]:
         post_id = response.json().get("id")
@@ -127,8 +135,8 @@ theme = THEMES[weekday]
 date_str = today.strftime("%Y-%m-%d")
 
 print(f"📝 {date_str} の記事を生成・投稿します")
-print(f"テーマ（日本語）: {theme['ja']}")
-print(f"Chủ đề (tiếng Việt): {theme['vi']}")
+print(f"WP_USER: {WP_USER}")
+print(f"WP_URL: {WP_URL}")
 
 # 日本語記事
 print("\n--- 日本語記事を生成中 ---")
