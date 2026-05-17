@@ -306,31 +306,27 @@ def parse_article(raw):
 # =============================
 def upload_photo_to_wordpress(photo_url):
     try:
-        img_response = requests.get(photo_url, timeout=15)
-        if img_response.status_code != 200:
-            print(f"⚠️ 写真取得失敗: {photo_url}")
-            return None
-
-        credentials = base64.b64encode(f"{WP_USER}:{WP_PASSWORD}".encode()).decode()
         headers = {
-            "Authorization": f"Basic {credentials}",
-            "Content-Disposition": "attachment; filename=goen-hcmc.jpg",
-            "Content-Type": "image/jpeg",
+            "Content-Type": "application/json",
+            "X-Secret-Key": CF_SECRET_KEY,
+            "X-Action": "upload_media",
+            "X-Image-Url": photo_url,
         }
 
-        upload_response = requests.post(
-            f"{WP_URL}/wp-json/wp/v2/media",
+        response = requests.post(
+            CLOUDFLARE_WORKER_URL,
             headers=headers,
-            data=img_response.content,
+            json={},
             timeout=30
         )
 
-        if upload_response.status_code in [200, 201]:
-            media_id = upload_response.json().get("id")
+        if response.status_code == 200:
+            result = response.json()
+            media_id = result.get("media_id")
             print(f"📷 写真アップロード成功: ID={media_id}")
             return media_id
         else:
-            print(f"⚠️ 写真アップロード失敗: {upload_response.status_code}")
+            print(f"⚠️ 写真アップロード失敗: {response.status_code} - {response.text}")
             return None
 
     except Exception as e:
