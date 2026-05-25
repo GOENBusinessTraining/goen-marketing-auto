@@ -248,28 +248,102 @@ def upload_photo(photo_url):
         print(f"⚠️ 写真エラー: {e}")
         return None
 
+def markdown_to_html(text):
+    """マークダウンをWordPress用HTMLに変換する"""
+    import re
+    lines = text.split('\n')
+    html_lines = []
+
+    for line in lines:
+        # ### 小見出し → H4（14px）
+        if line.startswith('### '):
+            content = line[4:].strip()
+            content = re.sub(r'\*\*(.+?)\*\*', r'\1', content)
+            html_lines.append(f'<h4 style="font-size:14px;">{content}</h4>')
+        # ## 大見出し → H4（14px・太字）
+        elif line.startswith('## '):
+            content = line[3:].strip()
+            content = re.sub(r'\*\*(.+?)\*\*', r'\1', content)
+            html_lines.append(f'<h4 style="font-size:14px; font-weight:bold;">{content}</h4>')
+        # # 見出し → H4
+        elif line.startswith('# '):
+            content = line[2:].strip()
+            content = re.sub(r'\*\*(.+?)\*\*', r'\1', content)
+            html_lines.append(f'<h4 style="font-size:14px; font-weight:bold;">{content}</h4>')
+        # 空行
+        elif line.strip() == '':
+            html_lines.append('')
+        # 通常テキスト（アスタリスク除去・12px）
+        else:
+            content = line.strip()
+            # **太字** を除去（タグではなくプレーンテキストに）
+            content = re.sub(r'\*\*(.+?)\*\*', r'\1', content)
+            # *斜体* を除去
+            content = re.sub(r'\*(.+?)\*', r'\1', content)
+            # 箇条書き「- 」や「* 」をプレーンに
+            content = re.sub(r'^[-*]\s+', '・', content)
+            # 数字リスト「1. 」をプレーンに
+            content = re.sub(r'^\d+\.\s+', lambda m: m.group(0).replace('.', '.'), content)
+            if content:
+                html_lines.append(f'<p style="font-size:12px;">{content}</p>')
+
+    return '\n'.join(html_lines)
+
+
 def insert_photos(body, photo_urls):
     for url in photo_urls:
         img_tag = f'\n\n<figure class="wp-block-image size-large"><img src="{url}" alt="ホーチミン ベトナム 日系企業 研修 人材育成" /></figure>\n\n'
         body = body.replace("【PHOTO】", img_tag, 1)
     return body
 
+
+def format_title(title, lang):
+    """タイトルに【ベトナム現地化コラム】を追加"""
+    # 既に含まれている場合はスキップ
+    if "ベトナム現地化コラム" in title:
+        return title
+    return f"【ベトナム現地化コラム】{title}"
+
+
 def post_article(article, lang="ja", media_id=None, inline_photos=None):
     schema_block = f'\n\n<script type="application/ld+json">\n{article["schema"]}\n</script>' if article.get("schema") else ""
-    body = insert_photos(article["body"], inline_photos) if inline_photos else article["body"]
-    content = f'{body}\n\n---\n{article["cta"]}{schema_block}'
-    data = {"title":article["title"],"content":content,"status":"draft",
-            "meta":{"rank_math_focus_keyword":article.get("focus_keyword",""),
-                    "rank_math_description":article.get("meta_desc",""),
-                    "rank_math_title":article.get("seo_title",article["title"])}}
+
+    # 本文をHTML変換
+    body = markdown_to_html(article["body"])
+
+    # 写真挿入
+    if inline_photos:
+        body = insert_photos(body, inline_photos)
+
+    # CTAもアスタリスク除去
+    import re
+    cta = re.sub(r'\*\*(.+?)\*\*', r'\1', article["cta"])
+    cta = re.sub(r'\*(.+?)\*', r'\1', cta)
+
+    content = f'{body}\n\n<hr />\n<p style="font-size:12px;">{cta}</p>{schema_block}'
+
+    # タイトルに【ベトナム現地化コラム】を追加
+    title = format_title(article["title"], lang)
+
+    data = {
+        "title": title,
+        "content": content,
+        "status": "draft",
+        "meta": {
+            "rank_math_focus_keyword": article.get("focus_keyword", ""),
+            "rank_math_description": article.get("meta_desc", ""),
+            "rank_math_title": article.get("seo_title", title),
+        }
+    }
     if media_id:
         data["featured_media"] = media_id
+
     r = requests.post(CLOUDFLARE_WORKER_URL,
                       headers={"Content-Type":"application/json","X-Secret-Key":CF_SECRET_KEY},
                       json=data, timeout=30)
     if r.status_code == 200:
         result = r.json()
-        print(f"✅ 投稿成功 (lang={lang}): ID={result.get('post_id')}, タイトル={article['title']}")
+        print(f"✅ 投稿成功 (lang={lang}): ID={result.get('post_id')}, タイトル={title}")
         return True
     print(f"❌ 投稿失敗 (lang={lang}): {r.status_code} - {r.text}")
     return False
